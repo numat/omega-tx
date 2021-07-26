@@ -1,4 +1,5 @@
 # omega-tx
+<b>NOTE: This is in very early stages of development.</b>
 
 Python ≥3.8 driver and command-line tool for Omega [ITHX](https://www.omega.com/en-us/iiot-wireless/p/ITHX-SD-Series) and [IBTHX](https://www.omega.com/en-us/iiot-wireless/p/ibtx-ibthx) transmitters.
 

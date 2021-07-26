@@ -126,11 +126,12 @@ class Barometer:
             except asyncio.TimeoutError:
                 logger.warning(f'Failed to read on command {command} response, based on timeout '
                                f'of {self.timeout} s.')
-                response = 'TimeOut'
+                response = 'TIMEOUT!'
 
             try:
                 if str(response) == 'ERROR!\r':  # response from IBTHX on malformed command
-                    logger.error(f'Failed read from device; exited with {response}.')
+                    logger.error(f'Failed read from device; exited with {response} due to '
+                                 f'malformed write command.')
                 else:
                     self.data[desc] = float(response)
             except (ValueError, TypeError):
