@@ -3,23 +3,23 @@
 Distributed under the GNU General Public License v2
 Copyright (C) 2020 NuMat Technologies
 """
-import aiohttp
 import asyncio
 import logging
 import sys
-import time
+
+import aiohttp
 
 
 # for the iBTHX-W transmitter
 COMMANDS = {
-    'SRTC': 'Temperature in °C',
-    'SRTF': 'Temperature in °F',
-    'SRHb': 'Pressure in mbar/hPa',
-    'SRHi': 'Pressure in inHg',
-    'SRHm': 'Pressure in mmHg',
-    'SRH2': 'Relative Humidity in %',
-    'SRDF2': 'Dewpoint in °F',
-    'SRDC2': 'Dewpoint in °C'}
+    'SRTC': ('Temperature in °C', 'metric'),
+    'SRTF': ('Temperature in °F', 'imperial'),
+    'SRHb': ('Pressure in mbar/hPa', 'metric'),
+    'SRHi': ('Pressure in inHg', 'imperial'),
+    'SRHm': ('Pressure in mmHg', 'metric'),
+    'SRH2': ('Relative Humidity in %', 'universal'),
+    'SRDF2': ('Dewpoint in °F', 'imperial'),
+    'SRDC2': ('Dewpoint in °C', 'metric')}
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +29,8 @@ class Barometer:
 
     Reads barometric pressure, ambient temperature, and relative humidity.
     """
-    def __init__(self, address: str, port: str = 2000, timeout: float = 2.0):
+    def __init__(self, address: str, port: str = 2000, timeout: float = 2.0,
+                 unit_system = 'metric'):
         """Initialize the device for the iBTHX-W.
 
         Note that this constructor does not connect. Connection happens on call:
@@ -43,6 +44,8 @@ class Barometer:
             Default port is 2000.
         timeout : float
             Applied both for establishing the connection as well as reading.
+        unit_system : str
+            Select either metric, imperial, or all units for the sensor request.
 
         Methods
         -------
@@ -56,6 +59,7 @@ class Barometer:
         self.writer = None
         self.timeout = timeout
         self.data = None
+        self.unit_system = unit_system
 
     async def __aenter__(self):
         """Support `async with` by entering a client session."""
@@ -71,7 +75,6 @@ class Barometer:
         """Support `async with` by exiting a client session."""
         if self.writer is not None:
             await self.disconnect()
-            self.writer = None
 
     async def connect(self):
         """Establish the TCP connection with asyncio.streams.
@@ -88,19 +91,32 @@ class Barometer:
         """Close the underlying socket connection, if exists."""
         if self.writer is not None:
             self.writer.close()
+            self.writer = None
 
     async def get(self):
         """Write and read from the IBTHX sensor.
 
         This method should not be used for time sensitive operations. However, this sensor
         is designed for `low resolution` (> 5 minute) monitoring.
+
+        A connection is made when the user calls this method, even when the connect() method has
+        not yet been explicitly called. Users can unplug (replug) sensors without the
+        logging/control script being aware. This removes the need to handle re-connects outside the
+        driver but the driver user is warned that the sensor has potentially been unplugged or lost
+         power somewhere along the way.
         """
         if self.writer is None:
-            logger.error('TCP connection not created before the request.')
-            raise Exception('No stream writer has been defined.')
+            logger.warning('TCP connection not created before the request.')
+            await self.connect()
+            logger.warning('A stream writer has been defined without the user explicitly calling '
+                           'connect() method. Sensor may have been unplugged at some point.')
 
-        self.data, response = {'Time in ms': int(time.time() * 1000)}, None
-        for command, desc in COMMANDS.items():
+        self.data, response = {}, None
+        commands = {
+            command: (desc, unit) for command, (desc, unit) in COMMANDS.items()
+            if unit == self.unit_system or unit == 'universal' or self.unit_system == 'all'}
+        for command, (desc, units) in commands.items():
+            self.data[desc] = None  # bad read value
             self.writer.write(f'*{command}\r'.encode())
             await self.writer.drain()
 
@@ -108,20 +124,19 @@ class Barometer:
                 fut = await asyncio.wait_for(self.reader.read(1024), timeout=self.timeout)
                 response = fut.decode()
             except asyncio.TimeoutError:
-                logger.warning(f'Failed to read based on timeout of {self.timeout} s.')
+                logger.warning(f'Failed to read on command {command} response, based on timeout '
+                               f'of {self.timeout} s.')
+                response = 'TimeOut'
 
             try:
                 if str(response) == 'ERROR!\r':  # response from IBTHX on malformed command
-                    logger.error(f'Failed read from device; exited with {str(response)}.')
+                    logger.error(f'Failed read from device; exited with {response}.')
                 else:
                     self.data[desc] = float(response)
-            except ValueError:
-                logger.warning(f'Failed read from device; unidentified error with response:'
-                               f' {(str(response))}.')
-
-            if not self.data.get(desc):
-                self.data[desc] = None  # bad read value
-        return self.data if any(self.data.values()) is not None else {}
+            except (ValueError, TypeError):
+                logger.warning(f'Failed read from device on command {command}; unidentified'
+                               f' error with response: {response}.')
+        return self.data
 
 
 class Hygrometer:
@@ -188,7 +203,6 @@ class Hygrometer:
             try:
                 temp, humid, dew = text.split('\n')[1:4]
                 self.data = {
-                    'Time in ms': int(time.time() * 1000),
                     'Temperature in °C': float(temp.split()[2]),
                     'Relative Humidity in %': float(humid.split()[2]),
                     'Dewpoint in °C': float(dew.split()[2]),

@@ -25,13 +25,17 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument(
         "-d", "--debug", action="store_true", help="Verbose debug output")
     parser.add_argument(
-        'type', help="Type of Omega transmitter. ibthx and ithx supported.")
+        'model', help="Model of Omega transmitter. ibthx and ithx supported.",
+        choices=['ibthx', 'ithx'])
     parser.add_argument(
         'address', help="The IP address of the Omega transmitter.")
     parser.add_argument(
-        '-port', help="The port of the Omega transmitter (default 2000).", default=2000)
+        '-p', '--port', help="The port of the Omega transmitter (default 2000).", default=2000)
     parser.add_argument(
-        '-timeout', help="Request timeout (default 2.0 s).", default=2.0)
+        '-t', '--timeout', help="Request timeout (default 2.0 s).", default=2.0, type=float)
+    parser.add_argument(
+        '-u', '--unit_system', help="Request the type of units to return (default metric).",
+        default='metric', choices=['all', 'imperial', 'metric'])
     return parser.parse_args()
 
 
@@ -45,7 +49,8 @@ def command_line() -> int:
     async def read_once():
         """Perform a single read from the transmitter."""
         try:
-            async with Barometer(args.address, args.port, args.timeout) if args.type == 'ibthx' \
+            async with Barometer(args.address, args.port,
+                                 args.timeout, args.unit_system) if args.model == 'ibthx' \
                     else Hygrometer(args.address, args.timeout) as tx:
                 sys.stdout.write(
                     json.dumps(await tx.get(), indent=4, sort_keys=True, ensure_ascii=False))
@@ -53,7 +58,6 @@ def command_line() -> int:
             sys.stderr.write(f'{bash_red}Could not connect to device.{color_off}\n')
 
     asyncio.run(read_once())
-    return 0
 
 
 if __name__ == '__main__':
