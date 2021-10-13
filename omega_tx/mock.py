@@ -7,9 +7,7 @@ import asyncio
 import random
 import time
 
-from omega_tx.driver import COMMANDS
-from omega_tx.driver import Barometer as RealBarometer
-from omega_tx.driver import Hygrometer as RealHygrometer
+from omega_tx.driver import COMMANDS, Barometer, Hygrometer
 
 
 # average and standard deviation of readings for a little realism
@@ -23,7 +21,7 @@ units = {
 }
 
 
-class Barometer(RealBarometer):
+class MockedBarometer(Barometer):
     """Mock driver for iBTHX Omega transmitters.
 
     Records barometric pressure, ambient temperature, and humidity.
@@ -51,7 +49,7 @@ class Barometer(RealBarometer):
         return self.data
 
 
-class Hygrometer(RealHygrometer):
+class MockedHygrometer(Hygrometer):
     """Mock driver for iBTHX Omega transmitters.
 
     Records barometric pressure, ambient temperature, and humidity.

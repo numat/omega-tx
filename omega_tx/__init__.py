@@ -12,6 +12,7 @@ import sys
 import asyncio
 
 from omega_tx.driver import Barometer, Hygrometer
+from omega_tx.mock import MockedBarometer, MockedHygrometer
 
 
 log = logging.getLogger(__name__)
