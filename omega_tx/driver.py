@@ -29,8 +29,9 @@ class Barometer:
 
     Reads barometric pressure, ambient temperature, and relative humidity.
     """
-    def __init__(self, address: str, port: str = 2000, timeout: float = 2.0,
-                 unit_system = 'metric'):
+
+    def __init__(self, address: str, port: str = '2000', timeout: float = 2.0,
+                 unit_system: str = 'metric'):
         """Initialize the device for the iBTHX-W.
 
         Note that this constructor does not connect. Connection happens on call:
@@ -145,6 +146,7 @@ class Hygrometer:
 
     Reads ambient temperature and relative humidity.
     """
+
     def __init__(self, address: str, timeout: float = 2.0):
         """Initialize the device for the iTHX-W.
 

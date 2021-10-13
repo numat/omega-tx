@@ -8,6 +8,8 @@ import random
 import time
 
 from omega_tx.driver import COMMANDS
+from omega_tx.driver import Barometer as RealBarometer
+from omega_tx.driver import Hygrometer as RealHygrometer
 
 
 # average and standard deviation of readings for a little realism
@@ -21,19 +23,16 @@ units = {
 }
 
 
-class Barometer:
+class Barometer(RealBarometer):
     """Mock driver for iBTHX Omega transmitters.
 
     Records barometric pressure, ambient temperature, and humidity.
     """
+
     def __init__(self, *args, **kwargs):
         """Initialize the mock device."""
         super().__init__(*args, **kwargs)
         self.data = {}
-
-        # this event loop "perturbs" readings for more realistic mocking
-        loop = asyncio.get_event_loop()
-        self.task = loop.create_task(self._perturb())
 
     async def __aenter__(self):
         """Support `async with` by entering a client session."""
@@ -44,32 +43,24 @@ class Barometer:
         pass
 
     async def get(self):
-        """Mocked reading from the transmitter."""
+        """Return a mocked reading from the transmitter."""
         await asyncio.sleep(0.1)  # more realistic time delay for writing/reading
-        return self.data
-
-    async def _perturb(self):
-        """Make the values dance!"""
         self.data = {'Time in ms': int(time.time() * 1000)}
-        while True:
-            for command, desc in COMMANDS.items():
-                self.data[desc] = round(random.gauss(*units.get(desc.split()[-1])), 1)
-            await asyncio.sleep(1.0)
+        for command, desc in COMMANDS.items():
+            self.data[desc[0]] = round(random.gauss(*units.get(desc[0].split()[-1])), 1)
+        return self.data
 
 
-class Hygrometer:
+class Hygrometer(RealHygrometer):
     """Mock driver for iBTHX Omega transmitters.
 
     Records barometric pressure, ambient temperature, and humidity.
     """
+
     def __init__(self, *args, **kwargs):
         """Initialize the mock device."""
         super().__init__(*args, **kwargs)
         self.data = {}
-
-        # this event loop "perturbs" readings for more realistic mocking
-        loop = asyncio.get_event_loop()
-        self.task = loop.create_task(self._perturb())
 
     async def __aenter__(self):
         """Support `async with` by entering a client session."""
@@ -80,15 +71,10 @@ class Hygrometer:
         pass
 
     async def get(self):
-        """Mocked reading from the transmitter."""
+        """Return a mocked reading from the transmitter."""
         await asyncio.sleep(0.1)  # more realistic time delay for writing/reading
-        return self.data
-
-    async def _perturb(self):
-        """Make the values dance!"""
         self.data = {'Time in ms': int(time.time() * 1000)}
         readings = ['Temperature in °C', 'Relative Humidity in %', 'Dewpoint in °C']
-        while True:
-            for desc in readings:
-                self.data[desc] = round(random.gauss(*units.get(desc.split()[-1])), 1)
-            await asyncio.sleep(1.0)
+        for desc in readings:
+            self.data[desc] = round(random.gauss(*units.get(desc.split()[-1])), 1)
+        return self.data

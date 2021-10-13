@@ -6,7 +6,7 @@ with open('README.md', 'r') as in_file:
 
 setup(
     name='omega-tx',
-    version='0.1.0',
+    version='0.2.0',
     description='Python driver for Omega iTHX-W and iBTHX-W transmitters.',
     long_description=long_description,
     long_description_content_type='text/markdown',
